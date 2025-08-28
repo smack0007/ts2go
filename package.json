@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "main": "./src/main.ts",
+  "name": "ts2go",
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "typescript": "5.9.2"
+  },
+  "dependencies": {
+    "@tsconfig/node24": "^24.0.1"
+  }
+}
