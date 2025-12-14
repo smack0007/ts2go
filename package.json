@@ -4,9 +4,10 @@
   "name": "ts2go",
   "devDependencies": {
     "@types/node": "24.3.0",
+    "esbuild": "0.27.1",
     "typescript": "5.9.2"
   },
   "dependencies": {
-    "@tsconfig/node24": "^24.0.1"
+    "@tsconfig/node24": "24.0.1"
   }
 }

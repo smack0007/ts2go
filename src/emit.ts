@@ -3,7 +3,7 @@ import { EmitContext } from "./emitContext.ts";
 import { EmitError } from "./emitError.ts";
 import { type EmitResult } from "./emitResult.ts";
 import { nodeKindString } from "./tsUtils.ts";
-import { firstLetterToUpper } from "./utils.ts";
+import { firstLetterToUpper, hasFlag } from "./utils.ts";
 
 export async function emit(
   typeChecker: ts.TypeChecker,
@@ -26,7 +26,8 @@ function emitPreamble(context: EmitContext): void {
   context.output.appendLine("package main");
   context.output.appendLine();
   context.output.appendLine("import (");
-  context.output.appendLine(`  "ts2go/console"`);
+  context.output.appendLine('  "fmt"');
+  context.output.appendLine('  "ts2go/console"');
   context.output.appendLine(")");
   context.output.appendLine();
 }
@@ -139,6 +140,66 @@ function emitFunctionDeclaration(
   // }
 }
 
+interface EmitVaraibleStatementOptions {
+  isGlobal?: boolean;
+}
+
+function emitVariableStatement(
+  context: EmitContext,
+  variableStatement: ts.VariableStatement,
+  options: EmitVaraibleStatementOptions = {}
+): void {
+  const { isGlobal = false } = options;
+
+  const isConst = hasFlag(
+    variableStatement.declarationList.flags,
+    ts.NodeFlags.Const
+  );
+
+  emitVariableDeclarationList(context, variableStatement.declarationList, {
+    isGlobal,
+    isConst,
+  });
+
+  context.output.appendLine(";");
+}
+
+interface EmitVariableDeclarationListOptions {
+  isGlobal?: boolean;
+  isConst?: boolean;
+}
+
+function emitVariableDeclarationList(
+  context: EmitContext,
+  variableDeclarationList: ts.VariableDeclarationList,
+  options: EmitVariableDeclarationListOptions = {}
+): void {
+  const { isGlobal = false, isConst = false } = options;
+
+  for (const variableDeclaration of variableDeclarationList.declarations) {
+    const type = context.getTypeName(variableDeclaration, {
+      initializer: variableDeclaration.initializer,
+    });
+    context.emittingVariableDeclarationType = type;
+
+    context.output.append("var ");
+    emitIdentifier(context, variableDeclaration.name as ts.Identifier);
+    context.output.append(" ");
+    context.output.append(type);
+
+    context.declare(variableDeclaration.name.getText(), type);
+
+    if (variableDeclaration.initializer) {
+      context.output.append(" = ");
+      emitExpression(context, variableDeclaration.initializer);
+
+      context.set(variableDeclaration.name.getText());
+    }
+
+    context.emittingVariableDeclarationType = null;
+  }
+}
+
 function emitBlock(context: EmitContext, block: ts.Block): void {
   context.output.appendLine("{");
   context.output.indent();
@@ -184,9 +245,9 @@ function emitBlockLevelStatement(
       emitReturnStatement(context, statement as ts.ReturnStatement);
       break;
 
-    // case ts.SyntaxKind.VariableStatement:
-    //   emitVariableStatement(context, statement as ts.VariableStatement);
-    //   break;
+    case ts.SyntaxKind.VariableStatement:
+      emitVariableStatement(context, statement as ts.VariableStatement);
+      break;
 
     // case ts.SyntaxKind.WhileStatement:
     //   emitWhileStatement(context, statement as ts.WhileStatement);
@@ -296,9 +357,9 @@ function emitExpression(context: EmitContext, expression: ts.Expression): void {
       emitStringLiteral(context, expression as ts.StringLiteral);
       break;
 
-    // case ts.SyntaxKind.TemplateExpression:
-    //   emitTemplateExpression(context, expression as ts.TemplateExpression);
-    //   break;
+    case ts.SyntaxKind.TemplateExpression:
+      emitTemplateExpression(context, expression as ts.TemplateExpression);
+      break;
 
     case ts.SyntaxKind.TrueKeyword:
     case ts.SyntaxKind.FalseKeyword:
@@ -388,6 +449,40 @@ function emitBinaryExpression(
   }
 
   emitExpression(context, binaryExpression.right);
+}
+
+function emitTemplateExpression(
+  context: EmitContext,
+  templateExpression: ts.TemplateExpression
+): void {
+  const expressions: ts.Expression[] = [];
+
+  context.output.append('fmt.Sprintf("');
+
+  if (templateExpression.head.text) {
+    context.output.append(templateExpression.head.text);
+  }
+
+  for (const templateSpan of templateExpression.templateSpans) {
+    if (templateSpan.expression) {
+      expressions.push(templateSpan.expression);
+      // TODO: Output correct placeholder
+      context.output.append("%s");
+    }
+
+    if (templateSpan.literal.text) {
+      context.output.append(templateSpan.literal.text);
+    }
+  }
+
+  context.output.append('"');
+
+  for (const expression of expressions) {
+    context.output.append(", ");
+    emitExpression(context, expression);
+  }
+
+  context.output.append(")");
 }
 
 function emitBooleanLiteral(
