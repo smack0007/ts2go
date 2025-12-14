@@ -10,15 +10,20 @@ import { EmitError } from "./emitError.ts";
 async function main(args: string[]): Promise<int32> {
   // TODO: Check these
   const inputFilePath = args[0] as string;
-  const outputFilePath = args[1] as string;
+  const outputFilePath = (args[1] as string) + "/main.go";
 
-  const program = ts.createProgram([path.join(ROOT_PATH, "TypeSlang.d.ts"), inputFilePath], {
-    target: SCRIPT_TARGET,
-  });
+  const program = ts.createProgram(
+    [path.join(ROOT_PATH, "types", "ts2go.d.ts"), inputFilePath],
+    {
+      target: SCRIPT_TARGET,
+    }
+  );
 
   const typeChecker = program.getTypeChecker();
 
-  const sourceFiles = program.getSourceFiles().filter((x) => !x.isDeclarationFile);
+  const sourceFiles = program
+    .getSourceFiles()
+    .filter((x) => !x.isDeclarationFile);
 
   if (sourceFiles.length > 1) {
     console.error("Multiple source files currently not supported.");
@@ -26,7 +31,7 @@ async function main(args: string[]): Promise<int32> {
   }
 
   const sourceFile = sourceFiles[0]!;
-	let result: EmitResult = undefined!;
+  let result: EmitResult = undefined!;
 
   try {
     result = await emit(typeChecker, sourceFile);
@@ -39,14 +44,14 @@ async function main(args: string[]): Promise<int32> {
     return 1;
   }
 
-	const outputDirectory = path.dirname(outputFilePath);
+  const outputDirectory = path.dirname(outputFilePath);
 
-	try {
-		await fs.mkdir(path.dirname(outputFilePath), { recursive: true });
-	} catch (err) {
-		console.error(`Failed to create output directory: ${outputDirectory}`);
-		return 1;
-	}
+  try {
+    await fs.mkdir(path.dirname(outputFilePath), { recursive: true });
+  } catch (err) {
+    console.error(`Failed to create output directory: ${outputDirectory}`);
+    return 1;
+  }
 
   await fs.writeFile(outputFilePath, result.output, "utf8");
 

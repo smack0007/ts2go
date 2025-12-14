@@ -1,9 +1,7 @@
 {
-	"extends": "../tsconfig.json",
-	"compilerOptions": {
-		"types": ["go"]
-	},
-	"include": [
-		"./**/*.ts"
-	]
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["ts2go"]
+  },
+  "include": ["./**/*.ts"]
 }

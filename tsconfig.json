@@ -1,12 +1,10 @@
 {
-	"extends": "@tsconfig/node24",
-	"compilerOptions": {
-		"typeRoots": ["./node_modules/@types", "./types"],
-		"types": ["node", "go"],
-		"noEmit": true,
-		"allowImportingTsExtensions": true
-	},
-	"include": [
-		"./src/**/*.ts"
-	]
+  "extends": "@tsconfig/node24",
+  "compilerOptions": {
+    "typeRoots": ["./node_modules/@types", "./types"],
+    "types": ["node", "ts2go"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["./src/**/*.ts"]
 }

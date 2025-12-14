@@ -1,3 +1,3 @@
 function main(): void {
-	console.info("Hello World!");
+  console.info("Hello World!");
 }

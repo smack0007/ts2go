@@ -1,4 +1,6 @@
-export function createEnumToStringMapFunction<T extends number = number>(enumeration: any): (value: T) => string {
+export function createEnumToStringMapFunction<T extends number = number>(
+  enumeration: any
+): (value: T) => string {
   const map = new Map<T, string>();
 
   for (let name in enumeration) {
@@ -9,4 +11,12 @@ export function createEnumToStringMapFunction<T extends number = number>(enumera
   }
 
   return (value: T) => (map.get(value) ?? "") as string;
+}
+
+export function firstLetterToUpper(input: string): string {
+  if (input.length <= 0) {
+    return input;
+  }
+
+  return input.substring(0, 1).toUpperCase() + input.substring(1);
 }
