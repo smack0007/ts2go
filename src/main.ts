@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
-import { ROOT_PATH, SCRIPT_TARGET } from "./constants.ts";
+import { RUNTIME_TYPE_DEFINITION_PATH, SCRIPT_TARGET } from "./constants.ts";
 import { emit } from "./emit.ts";
 import { type EmitResult } from "./emitResult.ts";
 import { EmitError } from "./emitError.ts";
@@ -13,7 +13,7 @@ async function main(args: string[]): Promise<int32> {
   const outputFilePath = (args[1] as string) + "/main.go";
 
   const program = ts.createProgram(
-    [path.join(ROOT_PATH, "types", "ts2go.d.ts"), inputFilePath],
+    [RUNTIME_TYPE_DEFINITION_PATH, inputFilePath],
     {
       target: SCRIPT_TARGET,
     }

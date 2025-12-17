@@ -88,8 +88,10 @@ function emitFunctionDeclaration(
     }
 
     const parameter = functionDeclaration.parameters[i];
-    // const parameterType = context.getTypeName(parameter);
-    // context.output.append(`${parameterType} ${(parameter.name as ts.Identifier).escapedText}`);
+    const parameterType = context.getTypeName(parameter);
+    context.output.append(
+      `${(parameter.name as ts.Identifier).escapedText} ${parameterType}`
+    );
   }
 
   context.output.append(")");
@@ -102,16 +104,13 @@ function emitFunctionDeclaration(
     );
   }
 
-  const returnType = context.typeChecker.typeToString(
-    context.typeChecker.getTypeFromTypeNode(functionDeclaration.type)
-  );
+  const returnType = context.getTypeName(functionDeclaration.type);
 
   if (returnType != "void") {
     context.output.append(` ${returnType}`);
   }
   context.output.append(" ");
 
-  // if (!options.signatureOnly) {
   if (!functionDeclaration.body) {
     throw new EmitError(
       context,
@@ -120,24 +119,10 @@ function emitFunctionDeclaration(
     );
   }
 
-  context.functions.push(functionDeclaration);
-  // context.declare(functionDeclaration.name.text, "function");
-  // context.set(functionDeclaration.name.text);
-
-  // context.pushScope();
-  for (const parameter of functionDeclaration.parameters) {
-    // const parameterType = context.getTypeName(parameter);
-    // context.declare(parameter.name.getText(), parameterType);
-  }
-
   emitBlock(context, functionDeclaration.body);
-  // context.popScope();
 
   context.output.appendLine();
   context.output.appendLine();
-  // } else {
-  //   context.output.appendLine(";");
-  // }
 }
 
 interface EmitVaraibleStatementOptions {
@@ -161,7 +146,7 @@ function emitVariableStatement(
     isConst,
   });
 
-  context.output.appendLine(";");
+  context.output.appendLine();
 }
 
 interface EmitVariableDeclarationListOptions {
@@ -177,26 +162,17 @@ function emitVariableDeclarationList(
   const { isGlobal = false, isConst = false } = options;
 
   for (const variableDeclaration of variableDeclarationList.declarations) {
-    const type = context.getTypeName(variableDeclaration, {
-      initializer: variableDeclaration.initializer,
-    });
-    context.emittingVariableDeclarationType = type;
+    const type = context.getTypeName(variableDeclaration);
 
     context.output.append("var ");
     emitIdentifier(context, variableDeclaration.name as ts.Identifier);
     context.output.append(" ");
     context.output.append(type);
 
-    context.declare(variableDeclaration.name.getText(), type);
-
     if (variableDeclaration.initializer) {
       context.output.append(" = ");
       emitExpression(context, variableDeclaration.initializer);
-
-      context.set(variableDeclaration.name.getText());
     }
-
-    context.emittingVariableDeclarationType = null;
   }
 }
 
@@ -269,7 +245,7 @@ function emitExpressionStatement(
   expressionStatement: ts.ExpressionStatement
 ): void {
   emitExpression(context, expressionStatement.expression);
-  context.output.appendLine(";");
+  context.output.appendLine();
 }
 
 function emitReturnStatement(
@@ -279,9 +255,9 @@ function emitReturnStatement(
   if (returnStatement.expression) {
     context.output.append("return ");
     emitExpression(context, returnStatement.expression);
-    context.output.appendLine(";");
+    context.output.appendLine();
   } else {
-    context.output.appendLine("return;");
+    context.output.appendLine("return");
   }
 }
 
@@ -448,7 +424,20 @@ function emitBinaryExpression(
       );
   }
 
+  let convertRightToString = false;
+  if (
+    context.getTypeName(binaryExpression.left) === "string" &&
+    context.getTypeName(binaryExpression.right) !== "string"
+  ) {
+    convertRightToString = true;
+    context.output.append(`fmt.Sprintf("%v", `);
+  }
+
   emitExpression(context, binaryExpression.right);
+
+  if (convertRightToString) {
+    context.output.append(")");
+  }
 }
 
 function emitTemplateExpression(
@@ -526,12 +515,7 @@ function emitCallExpression(
   //   return;
   // }
 
-  try {
-    context.isEmittingCallExpressionExpression = true;
-    emitExpression(context, callExpression.expression);
-  } finally {
-    context.isEmittingCallExpressionExpression = false;
-  }
+  emitExpression(context, callExpression.expression);
 
   context.output.append("(");
 

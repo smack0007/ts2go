@@ -4,6 +4,6 @@ import (
 	"fmt"
 )
 
-func Info(value string) {
+func Info(value any) {
 	fmt.Println(value)
 }
