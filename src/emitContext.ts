@@ -1,13 +1,11 @@
 import ts from "typescript";
 import { Stack } from "./stack.ts";
 import { StringBuilder } from "./stringBuilder.ts";
-import { VariableScope } from "./variableScope.ts";
-import { withIsUsed, type IsUsed } from "./markers.ts";
-import { isNodeWithType, mapTypeName } from "./typeUtils.ts";
-// import { isPointerCastExpression } from "./customNodes.ts";
-import { nodeKindString } from "./tsUtils.ts";
-import { EmitError } from "./emitError.ts";
-import { getTypeStringAtLocation } from "./typeChecker.ts";
+import {
+  getTypeStringAtLocation,
+  isArrayAtLocation,
+  isNumberAtLocation,
+} from "./typeChecker.ts";
 
 export class EmitContext {
   private _typeChecker: ts.TypeChecker;
@@ -30,6 +28,14 @@ export class EmitContext {
 
   public popOutput(): void {
     this._outputStack.pop();
+  }
+
+  public isArray(node: ts.Node): boolean {
+    return isArrayAtLocation(this._typeChecker, node);
+  }
+
+  public isNumber(node: ts.Node): boolean {
+    return isNumberAtLocation(this._typeChecker, node);
   }
 
   public getTypeName(node: ts.Node): string {

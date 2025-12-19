@@ -162,16 +162,28 @@ function emitVariableDeclarationList(
   const { isGlobal = false, isConst = false } = options;
 
   for (const variableDeclaration of variableDeclarationList.declarations) {
-    const type = context.getTypeName(variableDeclaration);
-
-    context.output.append("var ");
-    emitIdentifier(context, variableDeclaration.name as ts.Identifier);
-    context.output.append(" ");
-    context.output.append(type);
+    const typeName = context.getTypeName(variableDeclaration);
 
     if (variableDeclaration.initializer) {
-      context.output.append(" = ");
+      emitIdentifier(context, variableDeclaration.name as ts.Identifier);
+      context.output.append(" := ");
+
+      const castInitializer = context.isNumber(variableDeclaration);
+
+      if (castInitializer) {
+        context.output.append(`${typeName}(`);
+      }
+
       emitExpression(context, variableDeclaration.initializer);
+
+      if (castInitializer) {
+        context.output.append(`)`);
+      }
+    } else {
+      context.output.append("var ");
+      emitIdentifier(context, variableDeclaration.name as ts.Identifier);
+      context.output.append(" ");
+      context.output.append(typeName);
     }
   }
 }
@@ -180,13 +192,9 @@ function emitBlock(context: EmitContext, block: ts.Block): void {
   context.output.appendLine("{");
   context.output.indent();
 
-  // context.pushScope();
-
   for (const statement of block.statements) {
     emitBlockLevelStatement(context, statement);
   }
-
-  // context.popScope();
 
   context.output.unindent();
   context.output.append("}");
@@ -209,9 +217,9 @@ function emitBlockLevelStatement(
       emitExpressionStatement(context, statement as ts.ExpressionStatement);
       break;
 
-    // case ts.SyntaxKind.ForStatement:
-    //   emitForStatement(context, statement as ts.ForStatement);
-    //   break;
+    case ts.SyntaxKind.ForStatement:
+      emitForStatement(context, statement as ts.ForStatement);
+      break;
 
     // case ts.SyntaxKind.IfStatement:
     //   emitIfStatement(context, statement as ts.IfStatement);
@@ -248,6 +256,41 @@ function emitExpressionStatement(
   context.output.appendLine();
 }
 
+function emitForStatement(
+  context: EmitContext,
+  forStatement: ts.ForStatement
+): void {
+  context.output.append("for ");
+
+  if (forStatement.initializer) {
+    if (
+      forStatement.initializer.kind === ts.SyntaxKind.VariableDeclarationList
+    ) {
+      emitVariableDeclarationList(
+        context,
+        forStatement.initializer as ts.VariableDeclarationList
+      );
+    } else {
+      emitExpression(context, forStatement.initializer as ts.Expression);
+    }
+  }
+  context.output.append("; ");
+
+  if (forStatement.condition) {
+    emitExpression(context, forStatement.condition);
+  }
+  context.output.append("; ");
+
+  if (forStatement.incrementor) {
+    emitExpression(context, forStatement.incrementor);
+  }
+  context.output.append(" ");
+
+  emitBlockLevelStatement(context, forStatement.statement);
+
+  context.output.appendLine();
+}
+
 function emitReturnStatement(
   context: EmitContext,
   returnStatement: ts.ReturnStatement
@@ -263,9 +306,12 @@ function emitReturnStatement(
 
 function emitExpression(context: EmitContext, expression: ts.Expression): void {
   switch (expression.kind) {
-    // case ts.SyntaxKind.ArrayLiteralExpression:
-    //   emitArrayLiteralExpression(context, expression as ts.ArrayLiteralExpression);
-    //   break;
+    case ts.SyntaxKind.ArrayLiteralExpression:
+      emitArrayLiteralExpression(
+        context,
+        expression as ts.ArrayLiteralExpression
+      );
+      break;
 
     // case ts.SyntaxKind.AsExpression:
     //   emitAsExpression(context, expression as ts.AsExpression);
@@ -351,6 +397,24 @@ function emitExpression(context: EmitContext, expression: ts.Expression): void {
         }.`
       );
   }
+}
+
+function emitArrayLiteralExpression(
+  context: EmitContext,
+  arrayLiteralExpression: ts.ArrayLiteralExpression
+): void {
+  const type = context.getTypeName(arrayLiteralExpression);
+
+  context.output.append(`${type}{`);
+
+  for (let i = 0; i < arrayLiteralExpression.elements.length; i++) {
+    emitExpression(context, arrayLiteralExpression.elements[i]!);
+    if (i !== arrayLiteralExpression.elements.length - 1) {
+      context.output.append(", ");
+    }
+  }
+
+  context.output.append(`}`);
 }
 
 function emitBinaryExpression(
@@ -606,19 +670,19 @@ function emitPropertyAccessExpression(
   context: EmitContext,
   propertyAccessExpression: ts.PropertyAccessExpression
 ): void {
-  // const expressionType = context.getTypeName(propertyAccessExpression.expression);
+  const expressionIsArray = context.isArray(
+    propertyAccessExpression.expression
+  );
 
-  // if (context.isPointerTypeName(expressionType) && ts.isIdentifier(propertyAccessExpression.name)) {
-  //   if (propertyAccessExpression.name.text === "addressOf") {
-  //     context.output.append("(void*)");
-  //     emitExpression(context, propertyAccessExpression.expression);
-  //     return;
-  //   } else if (propertyAccessExpression.name.text === "dereference") {
-  //     context.output.append("*");
-  //     emitExpression(context, propertyAccessExpression.expression);
-  //     return;
-  //   }
-  // }
+  if (
+    expressionIsArray &&
+    propertyAccessExpression.name.escapedText === "length"
+  ) {
+    context.output.append("len(");
+    emitExpression(context, propertyAccessExpression.expression);
+    context.output.append(")");
+    return;
+  }
 
   emitExpression(context, propertyAccessExpression.expression);
   context.output.append(".");

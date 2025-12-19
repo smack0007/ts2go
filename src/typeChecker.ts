@@ -1,13 +1,43 @@
 import * as ts from "typescript";
 
+export function isArrayAtLocation(
+  typeChecker: ts.TypeChecker,
+  node: ts.Node
+): boolean {
+  return typeChecker.isArrayType(typeChecker.getTypeAtLocation(node));
+}
+
+export function isNumberAtLocation(
+  typeChecker: ts.TypeChecker,
+  node: ts.Node
+): boolean {
+  return isTypeNumber(typeChecker, typeChecker.getTypeAtLocation(node));
+}
+
+export function isTypeNumber(
+  typeChecker: ts.TypeChecker,
+  type: ts.Type
+): boolean {
+  return typeChecker.isTypeAssignableTo(type, typeChecker.getNumberType());
+}
+
 export function getTypeString(
   typeChecker: ts.TypeChecker,
   type: ts.Type
 ): string {
+  if (typeChecker.isArrayType(type)) {
+    const arrayElementType = typeChecker.getTypeArguments(
+      type as ts.TypeReference
+    )[0]!;
+    return "[]" + getTypeString(typeChecker, arrayElementType);
+  }
+
   if (type.isStringLiteral()) {
     return "string";
   }
 
+  // Only map numeric literals or types that map to number to int. int32
+  // for example should remain int32.
   if (type.isNumberLiteral() || type === typeChecker.getNumberType()) {
     return "int";
   }
