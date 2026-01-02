@@ -6,16 +6,14 @@ import { nodeKindString } from "./tsUtils.ts";
 import { firstLetterToUpper, hasFlag } from "./utils.ts";
 
 export async function emit(
-  typeChecker: ts.TypeChecker,
-  sourceFile: ts.SourceFile
+  program: ts.Program,
+  entrySourceFile: ts.SourceFile
 ): Promise<EmitResult> {
-  const context = new EmitContext(typeChecker, sourceFile);
+  const context = new EmitContext(program, entrySourceFile);
 
   emitPreamble(context);
 
-  for (const statement of sourceFile.statements) {
-    emitTopLevelStatement(context, statement);
-  }
+  emitSourceFile(context, entrySourceFile);
 
   return {
     output: context.output.toString(),
@@ -32,6 +30,12 @@ function emitPreamble(context: EmitContext): void {
   context.output.appendLine();
 }
 
+function emitSourceFile(context: EmitContext, sourceFile: ts.SourceFile) {
+  for (const statement of sourceFile.statements) {
+    emitTopLevelStatement(context, statement);
+  }
+}
+
 function emitTopLevelStatement(
   context: EmitContext,
   statement: ts.Statement
@@ -41,9 +45,9 @@ function emitTopLevelStatement(
       emitFunctionDeclaration(context, statement as ts.FunctionDeclaration);
       break;
 
-    // case ts.SyntaxKind.ImportDeclaration:
-    //   emitImportDeclaration(context, statement as ts.ImportDeclaration);
-    //   break;
+    case ts.SyntaxKind.ImportDeclaration:
+      emitImportDeclaration(context, statement as ts.ImportDeclaration);
+      break;
 
     // case ts.SyntaxKind.InterfaceDeclaration:
     //   emitInterfaceDeclaration(context, statement as ts.InterfaceDeclaration);
@@ -123,6 +127,22 @@ function emitFunctionDeclaration(
 
   context.output.appendLine();
   context.output.appendLine();
+}
+
+function emitImportDeclaration(
+  context: EmitContext,
+  functionDeclaration: ts.ImportDeclaration
+): void {
+  const sourceFile = context.pushSourceFile(
+    (functionDeclaration.moduleSpecifier as ts.StringLiteral).text
+  );
+
+  // TODO: Check if the file has already be emitted.
+  // TODO: Namespace the identifiers of the file.
+
+  emitSourceFile(context, sourceFile);
+
+  context.popSourceFile();
 }
 
 interface EmitVaraibleStatementOptions {

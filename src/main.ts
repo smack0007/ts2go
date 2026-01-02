@@ -2,39 +2,64 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import ts from "typescript";
-import { RUNTIME_TYPE_DEFINITION_PATH, SCRIPT_TARGET } from "./constants.ts";
+import {
+  RUNTIME_TYPE_DEFINITION_PATH,
+  TS_COMPILER_OPTIONS,
+} from "./constants.ts";
 import { emit } from "./emit.ts";
 import { type EmitResult } from "./emitResult.ts";
 import { EmitError } from "./emitError.ts";
+import { readTextFile } from "./fs.ts";
+import { createProgramFromImportGraph } from "./tsUtils.ts";
+import { resolve } from "./path.ts";
 
 async function main(args: string[]): Promise<int32> {
-  // TODO: Check these
-  const inputFilePath = args[0] as string;
+  // TODO: Check the args
+  const inputFilePath = resolve(args[0] as string);
   const outputFilePath = (args[1] as string) + "/main.go";
 
-  const program = ts.createProgram(
-    [RUNTIME_TYPE_DEFINITION_PATH, inputFilePath],
-    {
-      target: SCRIPT_TARGET,
+  const program = await createProgramFromImportGraph(inputFilePath);
+
+  const emitResult = program.emit();
+
+  const allDiagnostics = ts
+    .getPreEmitDiagnostics(program)
+    .concat(emitResult.diagnostics);
+
+  allDiagnostics.forEach((diagnostic) => {
+    // TODO: Print with colors
+    if (diagnostic.file) {
+      let { line, character } = ts.getLineAndCharacterOfPosition(
+        diagnostic.file,
+        diagnostic.start!
+      );
+      let message = ts.flattenDiagnosticMessageText(
+        diagnostic.messageText,
+        "\n"
+      );
+      console.log(
+        `${diagnostic.file.fileName} (${line + 1},${character + 1}): ${message}`
+      );
+    } else {
+      console.log(
+        ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")
+      );
     }
-  );
+  });
 
-  const typeChecker = program.getTypeChecker();
-
-  const sourceFiles = program
+  const entrySourceFile = program
     .getSourceFiles()
-    .filter((x) => !x.isDeclarationFile);
+    .find((x) => x.fileName === inputFilePath);
 
-  if (sourceFiles.length > 1) {
-    console.error("Multiple source files currently not supported.");
+  if (!entrySourceFile) {
+    console.error("ERROR: Failed to get entrySourceFile.");
     return 1;
   }
 
-  const sourceFile = sourceFiles[0]!;
   let result: EmitResult = undefined!;
 
   try {
-    result = await emit(typeChecker, sourceFile);
+    result = await emit(program, entrySourceFile);
   } catch (error) {
     if (error instanceof EmitError) {
       console.error(error.message);

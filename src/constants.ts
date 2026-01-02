@@ -8,6 +8,13 @@ export const RUNTIME_TYPE_DEFINITION_PATH = resolve(
   join(RUNTIME_PATH, "ts2go.d.ts")
 );
 
-export const SCRIPT_TARGET = ts.ScriptTarget.ES2024;
-
 export const NUMBER_SUPPORTED_RADIX = ["2", "10", "16"];
+
+export const TS_COMPILER_OPTIONS: ts.CompilerOptions = {
+  allowImportingTsExtensions: true,
+  module: ts.ModuleKind.NodeNext,
+  moduleResolution: ts.ModuleResolutionKind.NodeNext,
+  noEmit: true,
+  skipLibCheck: true,
+  target: ts.ScriptTarget.ESNext,
+};

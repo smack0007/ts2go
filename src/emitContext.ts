@@ -1,4 +1,4 @@
-import ts from "typescript";
+import ts, { SourceFile } from "typescript";
 import { Stack } from "./stack.ts";
 import { StringBuilder } from "./stringBuilder.ts";
 import {
@@ -6,20 +6,31 @@ import {
   isArrayAtLocation,
   isNumberAtLocation,
 } from "./typeChecker.ts";
+import { resolveModule } from "./path.ts";
+import { dirname } from "path";
+import { EmitError } from "./emitError.ts";
 
 export class EmitContext {
+  private _program: ts.Program;
   private _typeChecker: ts.TypeChecker;
-  private _sourceFile: ts.SourceFile;
+  private _entrySourceFile: ts.SourceFile;
 
   private _outputStack = new Stack<StringBuilder>([new StringBuilder()]);
+  private _sourceFileStack = new Stack<ts.SourceFile>();
 
-  constructor(typeChecker: ts.TypeChecker, sourceFile: ts.SourceFile) {
-    this._typeChecker = typeChecker;
-    this._sourceFile = sourceFile;
+  constructor(program: ts.Program, entrySourceFile: ts.SourceFile) {
+    this._program = program;
+    this._typeChecker = this._program.getTypeChecker();
+    this._entrySourceFile = entrySourceFile;
+    this._sourceFileStack.push(this._entrySourceFile);
   }
 
   public get output(): StringBuilder {
     return this._outputStack.top;
+  }
+
+  public get sourceFile(): ts.SourceFile {
+    return this._sourceFileStack.top;
   }
 
   public pushOutput(output: StringBuilder): void {
@@ -28,6 +39,24 @@ export class EmitContext {
 
   public popOutput(): void {
     this._outputStack.pop();
+  }
+
+  public pushSourceFile(path: string): SourceFile {
+    const resolvedPath = resolveModule(path, dirname(this.sourceFile.fileName));
+
+    const resolvedSourceFile = this._program
+      .getSourceFiles()
+      .find((x) => x.fileName === resolvedPath);
+
+    if (!resolvedSourceFile) {
+      throw new Error(`Failed to find resolved source file "${resolvedPath}".`);
+    }
+
+    return resolvedSourceFile;
+  }
+
+  public popSourceFile(): void {
+    this._sourceFileStack.pop();
   }
 
   public isArray(node: ts.Node): boolean {
