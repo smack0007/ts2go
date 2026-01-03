@@ -1,7 +1,7 @@
-import * as assert from "node:assert";
-import { describe, it } from "node:test";
 import ts from "typescript";
-import { createProgramFromSourceString } from "./tsUtils.ts";
+import { assert, describe, it } from "./test.ts";
+import { TEST_COMPILER_HOST } from "./testCompilerHost.ts";
+import { createProgramFromSourceTexts } from "./tsUtils.ts";
 import { findByKind } from "./typeUtils.ts";
 import {
   getTypeStringAtLocation,
@@ -12,12 +12,15 @@ import {
 function createSourceFileAndTypeChecker(
   source: string
 ): [ts.SourceFile, ts.TypeChecker] {
-  const program = createProgramFromSourceString(source, {
-    fileName: "test.ts",
-  });
+  const program = createProgramFromSourceTexts(
+    { "main.ts": source },
+    {
+      host: TEST_COMPILER_HOST,
+    }
+  );
   const sourceFile = program
     .getSourceFiles()
-    .find((x) => x.fileName === "test.ts")!;
+    .find((x) => x.fileName === "main.ts")!;
   return [sourceFile, program.getTypeChecker()];
 }
 

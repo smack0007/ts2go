@@ -1,9 +1,12 @@
 import ts from "typescript";
 import { EmitContext } from "./emitContext.ts";
 import { EmitError } from "./emitError.ts";
-import { type EmitResult } from "./emitResult.ts";
 import { nodeKindString } from "./tsUtils.ts";
 import { firstLetterToUpper, hasFlag } from "./utils.ts";
+
+export interface EmitResult {
+  readonly output: string;
+}
 
 export async function emit(
   program: ts.Program,

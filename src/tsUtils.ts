@@ -13,53 +13,62 @@ export function isAsConstExpression(node: ts.Node): node is ts.AsExpression {
   return ts.isAsExpression(node) && ts.isConstTypeReference(node.type);
 }
 
-interface CreateSourceFileOptions {
-  fileName?: string;
+export function createCachedCompilerHost(): ts.CompilerHost {
+  const cache: Record<string, ts.SourceFile> = {};
+
+  const compilerHost = ts.createCompilerHost({});
+  const getSourceFile = compilerHost.getSourceFile;
+  compilerHost.getSourceFile = (fileName, languageVersion) => {
+    if (cache[fileName]) {
+      return cache[fileName];
+    }
+
+    const sourceFile = getSourceFile(fileName, languageVersion);
+
+    if (sourceFile) {
+      cache[fileName] = sourceFile;
+    }
+
+    return sourceFile;
+  };
+
+  return compilerHost;
 }
 
-const DEFAULT_COMPILER_HOST_SOURCE_FILE_CACHE: Record<string, ts.SourceFile> =
-  {};
+interface CreateProgramOptions {
+  host?: ts.CompilerHost;
+}
 
-const DEFAULT_COMPILER_HOST = ts.createCompilerHost({});
-const baseGetSourceFile = DEFAULT_COMPILER_HOST.getSourceFile;
-DEFAULT_COMPILER_HOST.getSourceFile = (name, languageVersion) => {
-  if (DEFAULT_COMPILER_HOST_SOURCE_FILE_CACHE[name]) {
-    return DEFAULT_COMPILER_HOST_SOURCE_FILE_CACHE[name];
-  }
-
-  const sourceFile = baseGetSourceFile(name, languageVersion);
-
-  if (sourceFile) {
-    DEFAULT_COMPILER_HOST_SOURCE_FILE_CACHE[name] = sourceFile;
-  }
-
-  return sourceFile;
-};
-
-export function createProgramFromSourceString(
-  source: string,
-  options: CreateSourceFileOptions = {}
+export function createProgramFromSourceTexts(
+  sourceTexts: Record<string, string>,
+  options: CreateProgramOptions = {}
 ): ts.Program {
-  const sourceFileName = options.fileName ?? "source.ts";
-  const sourceFile = ts.createSourceFile(
-    sourceFileName,
-    source,
-    TS_COMPILER_OPTIONS.target
+  const sourceFiles: Record<string, ts.SourceFile> = Object.fromEntries(
+    Object.entries(sourceTexts).map(([sourceFileName, sourceText]) => [
+      sourceFileName,
+      ts.createSourceFile(
+        sourceFileName,
+        sourceText,
+        TS_COMPILER_OPTIONS.target
+      ),
+    ])
   );
 
+  const compilerHost = options.host ?? ts.createCompilerHost({});
+
   const customCompilerHost: ts.CompilerHost = {
-    ...DEFAULT_COMPILER_HOST,
-    getSourceFile: (name, languageVersion) => {
-      if (name === sourceFileName) {
-        return sourceFile;
+    ...compilerHost,
+    getSourceFile: (fileName, languageVersion) => {
+      if (sourceFiles[fileName] !== undefined) {
+        return sourceFiles[fileName];
       } else {
-        return DEFAULT_COMPILER_HOST.getSourceFile(name, languageVersion);
+        return compilerHost.getSourceFile(fileName, languageVersion);
       }
     },
   };
 
   const program = ts.createProgram(
-    [RUNTIME_TYPE_DEFINITION_PATH, sourceFileName],
+    [RUNTIME_TYPE_DEFINITION_PATH, ...Object.keys(sourceFiles)],
     TS_COMPILER_OPTIONS,
     customCompilerHost
   );
@@ -68,7 +77,8 @@ export function createProgramFromSourceString(
 }
 
 export async function createProgramFromImportGraph(
-  entrySourceFilePath: string
+  entrySourceFilePath: string,
+  options: CreateProgramOptions = {}
 ): Promise<ts.Program> {
   const sourceFiles: Record<string, ts.SourceFile> = {};
 
@@ -117,16 +127,15 @@ export async function createProgramFromImportGraph(
 
   await visitSourceFile(entrySourceFile);
 
-  const defaultCompilerHost = ts.createCompilerHost({});
+  const compilerHost = options.host ?? ts.createCompilerHost({});
 
   const customCompilerHost: ts.CompilerHost = {
-    ...defaultCompilerHost,
+    ...compilerHost,
     getSourceFile: (name, languageVersion) => {
       if (sourceFiles[name] !== undefined) {
         return sourceFiles[name];
       } else {
-        // TODO: Should an error just be thrown here?
-        return defaultCompilerHost.getSourceFile(name, languageVersion);
+        return compilerHost.getSourceFile(name, languageVersion);
       }
     },
   };
@@ -141,8 +150,7 @@ export async function createProgramFromImportGraph(
 }
 
 export function getTopLevelNames(
-  sourceFile: ts.SourceFile,
-  typeChecker: ts.TypeChecker
+  sourceFile: ts.SourceFile
 ): Record<string, ts.Statement> {
   const names: Record<string, ts.Statement> = {};
 
