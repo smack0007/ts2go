@@ -1,10 +1,10 @@
-import * as ts from "typescript";
+import ts from "typescript";
 
 export function isArrayAtLocation(
   typeChecker: ts.TypeChecker,
   node: ts.Node
 ): boolean {
-  return typeChecker.isArrayType(typeChecker.getTypeAtLocation(node));
+  return typeChecker.isArrayLikeType(typeChecker.getTypeAtLocation(node));
 }
 
 export function isNumberAtLocation(

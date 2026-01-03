@@ -4,7 +4,6 @@ import {
   RUNTIME_TYPE_DEFINITION_PATH,
   TS_COMPILER_OPTIONS,
 } from "./constants.ts";
-import { resolve } from "node:path";
 import { dirname, resolveModule } from "./path.ts";
 import { readTextFile } from "./fs.ts";
 
@@ -18,27 +17,43 @@ interface CreateSourceFileOptions {
   fileName?: string;
 }
 
-export function createSourceFileAndTypeChecker(
+const DEFAULT_COMPILER_HOST_SOURCE_FILE_CACHE: Record<string, ts.SourceFile> =
+  {};
+
+const DEFAULT_COMPILER_HOST = ts.createCompilerHost({});
+const baseGetSourceFile = DEFAULT_COMPILER_HOST.getSourceFile;
+DEFAULT_COMPILER_HOST.getSourceFile = (name, languageVersion) => {
+  if (DEFAULT_COMPILER_HOST_SOURCE_FILE_CACHE[name]) {
+    return DEFAULT_COMPILER_HOST_SOURCE_FILE_CACHE[name];
+  }
+
+  const sourceFile = baseGetSourceFile(name, languageVersion);
+
+  if (sourceFile) {
+    DEFAULT_COMPILER_HOST_SOURCE_FILE_CACHE[name] = sourceFile;
+  }
+
+  return sourceFile;
+};
+
+export function createProgramFromSourceString(
   source: string,
   options: CreateSourceFileOptions = {}
-): [ts.SourceFile, ts.TypeChecker] {
+): ts.Program {
   const sourceFileName = options.fileName ?? "source.ts";
   const sourceFile = ts.createSourceFile(
     sourceFileName,
     source,
-    TS_COMPILER_OPTIONS.target!
-    ///* setParentNodes: */ true
+    TS_COMPILER_OPTIONS.target
   );
 
-  const defaultCompilerHost = ts.createCompilerHost({});
-
   const customCompilerHost: ts.CompilerHost = {
-    ...defaultCompilerHost,
+    ...DEFAULT_COMPILER_HOST,
     getSourceFile: (name, languageVersion) => {
       if (name === sourceFileName) {
         return sourceFile;
       } else {
-        return defaultCompilerHost.getSourceFile(name, languageVersion);
+        return DEFAULT_COMPILER_HOST.getSourceFile(name, languageVersion);
       }
     },
   };
@@ -49,7 +64,7 @@ export function createSourceFileAndTypeChecker(
     customCompilerHost
   );
 
-  return [sourceFile, program.getTypeChecker()];
+  return program;
 }
 
 export async function createProgramFromImportGraph(

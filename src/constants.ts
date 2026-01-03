@@ -10,11 +10,11 @@ export const RUNTIME_TYPE_DEFINITION_PATH = resolve(
 
 export const NUMBER_SUPPORTED_RADIX = ["2", "10", "16"];
 
-export const TS_COMPILER_OPTIONS: ts.CompilerOptions = {
+export const TS_COMPILER_OPTIONS = {
   allowImportingTsExtensions: true,
   module: ts.ModuleKind.NodeNext,
   moduleResolution: ts.ModuleResolutionKind.NodeNext,
   noEmit: true,
   skipLibCheck: true,
   target: ts.ScriptTarget.ESNext,
-};
+} as const satisfies ts.CompilerOptions;

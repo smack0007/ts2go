@@ -1,4 +1,4 @@
-import * as ts from "typescript";
+import ts from "typescript";
 import { isFirstCharacterDigit } from "./utils.ts";
 
 export function isNodeWithType(

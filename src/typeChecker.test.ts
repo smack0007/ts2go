@@ -1,13 +1,25 @@
 import * as assert from "node:assert";
 import { describe, it } from "node:test";
-import * as ts from "typescript";
-import { createSourceFileAndTypeChecker } from "./tsUtils.ts";
+import ts from "typescript";
+import { createProgramFromSourceString } from "./tsUtils.ts";
 import { findByKind } from "./typeUtils.ts";
 import {
   getTypeStringAtLocation,
   isArrayAtLocation,
   isNumberAtLocation,
 } from "./typeChecker.ts";
+
+function createSourceFileAndTypeChecker(
+  source: string
+): [ts.SourceFile, ts.TypeChecker] {
+  const program = createProgramFromSourceString(source, {
+    fileName: "test.ts",
+  });
+  const sourceFile = program
+    .getSourceFiles()
+    .find((x) => x.fileName === "test.ts")!;
+  return [sourceFile, program.getTypeChecker()];
+}
 
 describe("typeChecker.ts", () => {
   describe("isArrayAtLocation", () => {
@@ -30,9 +42,7 @@ describe("typeChecker.ts", () => {
           createSourceFileAndTypeChecker(source);
 
         const node = findByKind(sourceFile, syntaxKind);
-
         assert.ok(node);
-
         assert.equal(isArrayAtLocation(typeChecker, node), expected);
       });
     }
@@ -55,9 +65,7 @@ describe("typeChecker.ts", () => {
           createSourceFileAndTypeChecker(source);
 
         const node = findByKind(sourceFile, syntaxKind);
-
         assert.ok(node);
-
         assert.equal(isNumberAtLocation(typeChecker, node), expected);
       });
     }
@@ -104,9 +112,7 @@ describe("typeChecker.ts", () => {
           createSourceFileAndTypeChecker(source);
 
         const node = findByKind(sourceFile, syntaxKind);
-
         assert.ok(node);
-
         assert.equal(getTypeStringAtLocation(typeChecker, node), expected);
       });
     }

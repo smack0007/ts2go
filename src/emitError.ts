@@ -7,8 +7,8 @@ export class EmitError extends Error {
 
   constructor(context: EmitContext, node: ts.Node, message: string) {
     const { line, character } =
-      context._sourceFile.getLineAndCharacterOfPosition(
-        node.getStart(context._sourceFile)
+      context.sourceFile.getLineAndCharacterOfPosition(
+        node.getStart(context.sourceFile)
       );
     super(`(${line + 1}, ${character + 1}): ${message}`);
 

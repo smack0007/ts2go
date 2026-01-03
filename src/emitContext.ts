@@ -6,9 +6,7 @@ import {
   isArrayAtLocation,
   isNumberAtLocation,
 } from "./typeChecker.ts";
-import { resolveModule } from "./path.ts";
-import { dirname } from "path";
-import { EmitError } from "./emitError.ts";
+import { dirname, resolveModule } from "./path.ts";
 
 export class EmitContext {
   private _program: ts.Program;
